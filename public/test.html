@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>Hello World in Backbone.js</title>
+  <link rel="stylesheet" type="text/css" href="css/bootstrap.css">
+</head>
+<body>
+  <!-- ========= -->
+  <!-- Your HTML -->
+  <!-- ========= -->
+
+  <section id="listofallusers">
+    <div>
+    <h1>List of user</h1>
+    <tr>
+    <section id="individual_userlist">
+    </section>
+    </tr>
+    <!-- </table> -->
+    </div>
+    <div>
+    <h1>Post for the user</h1>
+    <tr>
+    <section id="individual_users_post_list">
+    </section>
+    </tr>
+    </div>
+    <div>
+    <h1>Comments for the posts</h1>
+    <tr>
+    <section id="individual_posts_comment">
+    </section>
+    </tr>
+    </div>
+  </section>
+
+
+
+<!-- a template for individual user -->
+<script type="text/template" id="individual_user_template">
+<div>
+  <label id="id_of_user"><%- id_of_user %></label>
+  <label><%- name_of_user %></label>
+  <label><%- email_of_user %></label>
+  <button class="button" id="post_button">read posts</button>
+  </div>
+</script>
+
+<!-- template for showing the post page -->
+<script type="text/template" id="post_of_individual_user">
+<table>
+  <tr>
+    <th>POST ID</th>
+    <td><label id="id_of_post"><%- id_of_post%></label></td>
+  </tr>
+  <tr>
+    <th>Title</th>
+    <td><label><%- title_of_post %></label></td>
+  </tr>
+  <tr>
+    <th>Body</th>
+    <td><label><%- body_of_post %></label></td>
+  </tr>
+  <tr>
+    <th></th>
+    <td><a href="#"><button class="button" id="comment_button">read comments</button></a></td>
+  </tr>
+</table>
+</script>
+
+<!-- template for showing the comment page -->
+<script type="text/template" id="comment_of_individual_post">
+<table>
+  <tr>
+    <th>COMMENT ID</th>
+    <td><label id="id_of_comment"><%- id_of_comment %></label><td>
+    </tr>
+    <tr>
+    <th>Name</th>
+    <td><label><%- name_of_comment %></label></td>
+  </tr>
+  <tr>
+    <th>Email</th>
+    <td><label><%- email_of_comment %></label></td>
+  </tr>
+  <tr>
+    <th>Body</th>
+    <td><label><%- body_of_comment %></label></td>
+  </tr>
+</table>
+</script>
+  <!-- ========= -->
+  <!-- Libraries -->
+  <!-- ========= -->
+  <script src="jquery.min.js" type="text/javascript"></script>
+  <script src="underscore-min.js" type="text/javascript"></script>
+  <script src="backbone-min.js" type="text/javascript"></script> 
+  
+  <!-- =============== -->
+  <!-- Javascript code -->
+  <!-- =============== -->
+  <script type="text/javascript">
+  var app = {};
+
+  app.usersmodel = Backbone.Model.extend({
+  });
+  app.postsmodel = Backbone.Model.extend({
+  });
+  app.commentsmodel = Backbone.Model.extend({
+  });
+
+  app.UsersCollection = Backbone.Collection.extend({
+    model: app.usersmodel,
+    url: 'https://jsonplaceholder.typicode.com/users'
+  });
+  app.PostsCollection = Backbone.Collection.extend({
+    initialize: function(models, options){
+      this.id = options.id;
+    },
+    model: app.postsmodel,
+    url: function(){
+      return 'https://jsonplaceholder.typicode.com/users/'+this.id+'/posts';
+    }
+  });
+  app.CommenstCollection = Backbone.Collection.extend({
+    initialize: function(models, options){
+      this.id = options.id;
+    },
+    model: app.commentsmodel,
+    url: function(){
+      return 'https://jsonplaceholder.typicode.com/posts/'+this.id+'/comments'
+    }
+  })
+
+
+  app.Router = Backbone.Router.extend({
+    routes: {
+      "":"users",
+      "users/:id": "posts",
+      "comment/:id":"comments"
+    },
+    users: function(){
+      console.log("In users");
+      app.appView = new app.User_View();
+      // $('#individual_userlist').show();
+    },
+    posts: function(id){
+      var self = this;
+      this.collection = new app.PostsCollection([], {id: id});
+      this.collection.fetch().done(function(){
+        self.collection.each(function(log){
+          var individual_post_view = new app.Individual_post_view({model: log});
+          $('#individual_users_post_list').append(individual_post_view.render().el);
+        })
+      })
+      $('#individual_userlist').hide('');
+    },
+    comments: function(id){
+      var self = this;
+      this.collection = new app.CommenstCollection([], {id: id});
+      this.collection.fetch().done(function(){
+        self.collection.each(function(log){
+          var individual_comment_view = new app.Individual_comment_view({model: log});
+          $('#individual_posts_comment').append(individual_comment_view.render().el);
+        })
+      })
+      $('#individual_users_post_list').hide('');
+    }
+  });
+
+
+  app.Individual_user_view = Backbone.View.extend({
+  template: _.template($('#individual_user_template').html()),
+  initialize: function()
+    {
+    },
+    events: {
+      'click #post_button': 'posts'
+    },
+  render: function()
+    {
+      var self = this
+      this.$el.html(this.template({id_of_user: this.model.get('id'), name_of_user: this.model.get('name'), email_of_user: this.model.get('email')}));
+      return this;
+    },
+    posts: function(e){
+       var id_to_route = this.model.get('id');
+       app.router.navigate('users/' + id_to_route, true);
+    }
+  });
+
+
+  app.Individual_post_view = Backbone.View.extend({
+    template:_.template($('#post_of_individual_user').html()),
+    initialize: function(){
+    },
+    events: {
+      'click #comment_button': 'comments'
+    },
+    render: function(){
+      this.$el.html(this.template({id_of_post: this.model.get('id'), title_of_post: this.model.get('title'), body_of_post: this.model.get('body')}));
+      return this;
+    },
+    comments: function(e){
+      e.preventDefault();
+      var id_to_route = this.model.get('id');
+       app.router.navigate("comment/" + id_to_route, {trigger: true});
+    }
+  });
+
+  app.Individual_comment_view = Backbone.View.extend({
+    template:_.template($('#comment_of_individual_post').html()),
+    initialize: function(){},
+    render: function(){
+      this.$el.html(this.template({id_of_comment: this.model.get('id'), name_of_comment: this.model.get('name'), email_of_comment: this.model.get('email'), body_of_comment: this.model.get('body')}));
+      return this;
+    }
+  });
+
+    app.User_View = Backbone.View.extend({
+      el: '#listofallusers',
+      initialize: function(){
+        console.log("renderin user view")
+        this.render();
+      },
+      render: function(){
+        var self=this;
+        this.collection = new app.UsersCollection();
+        this.collection.fetch().done(function(){
+          self.collection.each(function(log){
+           var individual_user_view = new app.Individual_user_view({model: log});
+           $('#individual_userlist').append(individual_user_view.render().el);
+        });
+        });
+      }
+    });
+    app.router = new app.Router({trigger: true});
+    Backbone.history.start();
+  </script>
+  
+</body>
+</html>
