@@ -15,11 +15,41 @@
   <section id="templates_used">
     <script type="text/template" id="template_for_users">
     <div class="users_data">
-        <label id="id_of_user"><%- id_of_user %></label>
+        <label><%- id_of_user %></label>
         <label><%- name_of_user %></label>
         <label><%- email_of_user %></label>
-        <button class="button" id="post_button">read posts</button>
+        <button class="button" id="post_button" data-user-id="<%= id_of_user %>">read posts</button>
         </div>
+    </script>
+
+    <script type="text/template" id="template_for_posts">
+      <div class="posts_data">
+        <label><%- id_of_post%></label>
+        <label><%- title_of_post %></label>
+        <label><%- body_of_post %></label>
+        <button class="button" id="comment_button" data-post-id="<%= id_of_post %>">read comments</button>
+      </div>
+    </script>
+
+    <script type="text/template" id="template_for_comments">
+      <div class="comments_data">
+        <label id="id_of_comment"><%- id_of_comment %></label>
+        <label><%- name_of_comment %></label>
+        <label><%- email_of_comment %></label>
+        <label><%- body_of_comment %></label>
+      </div>
+    </script>
+
+    <script type="text/template" id="base_user_template">
+      <div id="users-list"></div>
+    </script>
+
+    <script type="text/template" id="base_post_template">
+      <div id="posts-list"></div>
+    </script>
+
+     <script type="text/template" id="base_comment_template">
+      <div id="comments-list"></div>
     </script>
   </section>
   <!-- ========== -->
@@ -45,42 +75,118 @@
     },
     users: function(){
       app.main_user_view = new app.Main_user_view();
+      $("#main").html(app.main_user_view.render().el);
     },
     posts: function(id){
-      console.log("the value of the id coming in posts is"+id);
+      app.post_collection = new app.PostsCollection([], {id: id});
+      app.main_post_view = new app.Main_post_view();
+      $("#main").html(app.main_post_view.render().el);
     },
     comments: function(id){
-      console.log("the value of the id coming in the comments is"+id);
+      app.comment_collection = new app.CommentsCollection([], {id: id});
+      app.main_comment_view = new app.Main_comment_view();
+      $("#main").html(app.main_comment_view.render().el);
     }
   })
 
   app.usersmodel = Backbone.Model.extend({
   });
+  app.postsmodel = Backbone.Model.extend({
+  });
+  app.commentsmodel = Backbone.Model.extend({
+  });
+
+
   app.UsersCollection = Backbone.Collection.extend({
     model: app.usersmodel,
     url: 'https://jsonplaceholder.typicode.com/users'
   });
 
+  app.PostsCollection = Backbone.Collection.extend({
+    initialize: function(models, options){
+      this.id = options.id;
+    },
+    model: app.postsmodel,
+    url: function(){
+      return 'https://jsonplaceholder.typicode.com/users/'+this.id+'/posts';
+    }
+  });
+
+  app.CommentsCollection = Backbone.Collection.extend({
+     initialize: function(models, options){
+      this.id = options.id;
+    },
+    model: app.commentsmodel,
+    url: function(){
+      return 'https://jsonplaceholder.typicode.com/posts/'+this.id+'/comments'
+    }
+  });
+
+
   app.Main_user_view = Backbone.View.extend({
+    baseTemplate: _.template($("#base_user_template").html()),
     template:_.template($('#template_for_users').html()),
-    initialize: function(){
-      this.render();
+    events: {
+      'click #post_button': 'posts'
     },
     render: function(){
+      $(this.el).html(this.baseTemplate());
       var self = this;
       this.collection = new app.UsersCollection();
       this.collection.fetch().done(function(){
         self.collection.each(function(eachmodel){
-          console.log("the value for the id is"+eachmodel.get('id'));
-          self.$el.html(self.template({id_of_user: eachmodel.get('id'), name_of_user: eachmodel.get('name'), email_of_user: eachmodel.get('email')}));
-          console.log(self.$el.html())
-          $('#main').append(self.$el.html());
-          console.log($('#users_data').html());
-      return this;
+          $(self.el).find("#users-list").append(self.template({id_of_user: eachmodel.get('id'), name_of_user: eachmodel.get('name'), email_of_user: eachmodel.get('email')}));
         })
       })
+      return this;
+    },
+    posts: function(e){
+      target = e.currentTarget;
+      var id_to_route = $(target).attr('data-user-id');
+      app.router.navigate('users/' + id_to_route, true);
     }
   })
+
+  app.Main_post_view = Backbone.View.extend({
+    baseTemplate: _.template($("#base_post_template").html()),
+    template: _.template($("#template_for_posts").html()),
+    events: {
+      'click #comment_button': 'comments'
+    },
+    render: function(){
+      $(this.el).html(this.baseTemplate());
+      var self=this;
+      this.collection = app.post_collection;
+      this.collection.fetch().done(function(){
+        self.collection.each(function(eachmodel){
+          $(self.el).find("#posts-list").append(self.template({id_of_post: eachmodel.get('id'), title_of_post: eachmodel.get('title'), body_of_post: eachmodel.get('body')}));
+        })
+      })
+      return this;
+    },
+    comments: function(e){
+      target = e.currentTarget;
+      var id_to_route = $(target).attr('data-post-id');
+      app.router.navigate('posts/'+id_to_route, true);
+    }
+  });
+
+
+  app.Main_comment_view = Backbone.View.extend({
+    baseTemplate: _.template($("#base_comment_template").html()),
+    template: _.template($("#template_for_comments").html()),
+    render: function(){
+      $(this.el).html(this.baseTemplate());
+      var self = this;
+      this.collection = app.comment_collection;
+      this.collection.fetch().done(function(){
+        self.collection.each(function(eachmodel){
+          $(self.el).find("#comments-list").append(self.template({id_of_comment: eachmodel.get('id'), name_of_comment: eachmodel.get('name'), email_of_comment: eachmodel.get('email'), body_of_comment: eachmodel.get('body')}));
+        })
+      })
+      return this;
+    }
+  });
 
   app.router = new app.Router({trigger: true});
   Backbone.history.start();
